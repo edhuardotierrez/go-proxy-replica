@@ -1,2 +1,4 @@
 .idea
 /proxies.yaml
+go-proxy-replica
+example_proxy/example-proxy
