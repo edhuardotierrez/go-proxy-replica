@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
@@ -51,8 +50,9 @@ func main() {
 	logLevel := flag.String("level", "", "set log level")
 	flag.Parse()
 
+	log.Infoln("go-proxy-replica " + Version)
+
 	if *versionFlag {
-		fmt.Println("HTTP PROXY MANY / " + Version + " (by 65A)")
 		os.Exit(0)
 	}
 
@@ -71,7 +71,6 @@ func main() {
 	// Config Init
 	LoadConfig()
 
-	log.Infoln("Http Proxy Many " + Version + " (Simon@65A)")
 
 	// ----------------------------------------------------------------------------------------------------------
 	// Start Web Server
