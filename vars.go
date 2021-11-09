@@ -58,7 +58,6 @@ func LoadConfig() {
 	viper.SetConfigName("proxies.yaml")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(filepath.Dir(ConfigFilePath))
-	viper.AddConfigPath("/etc/http-proxy-replica")
 
 	err := viper.ReadInConfig()
 	if err != nil {

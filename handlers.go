@@ -21,7 +21,7 @@ func replicate(cfg configEndpoint, c *gin.Context, buf []byte) (*http.Response, 
 	uri := re.ReplaceAllString(c.Request.RequestURI, ``)
 	url := fmt.Sprintf("%s/%s", cfg.URL, uri)
 
-	fmt.Println(cfg.URL)
+	log.Println(cfg.URL)
 
 	//
 	// req.Header.Add("X-Forwarded-Host", host)
