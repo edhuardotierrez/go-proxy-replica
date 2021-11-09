@@ -1,0 +1,27 @@
+server:
+  bind_address: ":http"
+
+  # For Let's Encrypt
+  # When enabled, exposes 80 and 443
+  autotls:
+    enabled: true
+    domains: [ 'host1.your-domain.tld', 'host2.your-domain.tld' ]
+    email: "email@your-domain.tld"
+
+# Main Proxy (Required)
+# Wait response
+main:
+  url: http://localhost:8080
+  verify_ssl: false
+  timeout: 10s
+
+# Secondary Proxies (Optional)
+# No wait response
+replicas:
+  - url: http://localhost:8081
+    verify_ssl: false
+    timeout: 5s
+
+  - url: http://localhost:8082
+    verify_ssl: false
+    timeout: 5s

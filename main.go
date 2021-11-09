@@ -11,11 +11,6 @@ import (
 	"strings"
 )
 
-// Run support 1-line LetsEncrypt HTTPS servers
-//func Run(r http.Handler, domain ...string) error {
-//	return http.Serve(autocert.NewListener(domain...), r)
-//}
-
 // RunWithManager support custom autocert manager
 func RunWithManager(r http.Handler, m *autocert.Manager) error {
 	s := &http.Server{
@@ -71,10 +66,7 @@ func main() {
 	// Config Init
 	LoadConfig()
 
-
-	// ----------------------------------------------------------------------------------------------------------
-	// Start Web Server
-
+	// Route
 	route := gin.Default()
 
 	// Allow all origins (from public domains)
@@ -91,11 +83,9 @@ func main() {
 			Cache:      autocert.DirCache("/tmp/.cache"),
 			Email:      Config.Server.AutoTLS.Email,
 		}
-
 		if err := RunWithManager(route, &m); err != nil {
 			log.Errorf("Failed to run server: %v", err)
 		}
-
 	} else {
 
 		if err := route.Run(Config.Server.BindAddress); err != nil {

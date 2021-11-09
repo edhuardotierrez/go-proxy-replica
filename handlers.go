@@ -24,10 +24,6 @@ func replicate(cfg configEndpoint, c *gin.Context, buf []byte) (*http.Response, 
 	fmt.Println(cfg.URL)
 
 	//
-	// re := regexp.MustCompile(`:[0-9]+$`)
-	// host := re.ReplaceAllString(c.Request.Host, ``)
-
-	// Headers
 	// req.Header.Add("X-Forwarded-Host", host)
 	var timeout = ReplyTimeout
 
