@@ -14,7 +14,6 @@ import (
 var Version = "development"
 var LogLevel = "TRACE"
 var ConfigFilePath = ""
-var Domains []string
 var Config *configBase
 
 const (
@@ -94,6 +93,7 @@ func LoadConfig() {
 			log.SetLevel(log.InfoLevel)
 		case "DEBUG":
 			log.SetLevel(log.DebugLevel)
+			gin.SetMode(gin.DebugMode)
 		case "TRACE":
 			log.SetLevel(log.TraceLevel)
 			gin.SetMode(gin.DebugMode)
@@ -105,11 +105,8 @@ func LoadConfig() {
 	// Log
 	log.SetFormatter(&log.TextFormatter{})
 
-	if IsDevelopment() {
-		log.SetLevel(log.DebugLevel)
-	} else {
-		log.SetLevel(log.WarnLevel)
-	}
+	log.Debug("============================", "configuration", "============================")
+	log.Debug(Config)
 
 }
 

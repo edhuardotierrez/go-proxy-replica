@@ -79,7 +79,7 @@ func ReplyProxyHandler(c *gin.Context) {
 	}
 
 	if resp.StatusCode > 302 {
-		c.AbortWithStatus(resp.StatusCode)
+		c.String(resp.StatusCode, "%s", resp.Status)
 		return
 	}
 	if resp.Body != nil {

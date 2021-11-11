@@ -40,9 +40,16 @@ func redirect(w http.ResponseWriter, req *http.Request) {
 
 func main() {
 
+	//
 	configFlag := flag.String("config", "", "config path (ex: -config ./proxies.yaml")
 	versionFlag := flag.Bool("version", false, "get version")
 	logLevel := flag.String("level", "", "set log level")
+
+	// auto config
+	domainsFlag := flag.String("domains", "", "(optional) lets encrypt domains")
+	emailFlag := flag.String("email", "", "(optional) lets encrypt email")
+	masterFlag := flag.String("master", "", "(optional) master url")
+
 	flag.Parse()
 
 	log.Infoln("go-proxy-replica " + Version)
@@ -65,6 +72,34 @@ func main() {
 
 	// Config Init
 	LoadConfig()
+
+	// Replace Vars
+	if len(strings.TrimSpace(*domainsFlag)) > 2 {
+		log.Warningf(">> Runtime changing variable: domains (%s)", *domainsFlag)
+		var domains []string
+		for _, v := range strings.Split(*domainsFlag, ",") {
+			domain := strings.TrimSpace(v)
+			if strings.Contains(domain, ".") {
+				domains = append(domains, domain)
+			}
+		}
+
+		if len(domains) > 0 {
+			Config.Server.AutoTLS.Enabled = true
+			Config.Server.AutoTLS.Domains = domains
+		}
+
+	}
+
+	if len(strings.TrimSpace(*emailFlag)) > 2 {
+		log.Warningf(">> Runtime changing variable: email (%s)", *emailFlag)
+		Config.Server.AutoTLS.Email = *emailFlag
+	}
+
+	if len(strings.TrimSpace(*masterFlag)) > 2 {
+		log.Warningf(">> Runtime changing variable: master (%s)", *masterFlag)
+		Config.Master.URL = *masterFlag
+	}
 
 	// Route
 	route := gin.Default()

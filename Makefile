@@ -12,6 +12,9 @@ go:
 go_linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-X 'main.Version=v$(MY_VERSION)'" -o go-proxy-replica$(SUFFIX)
 
+docker_image:
+	docker build --network host -t go-proxy-replica:latest .
+
 vendor:
 	go env -w GO111MODULE=on
 	go mod tidy -go=1.16 && go mod tidy -go=1.17
