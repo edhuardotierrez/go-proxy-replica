@@ -75,9 +75,12 @@ func ReplyProxyHandler(c *gin.Context) {
 	resp, err := replicate(Config.Master, c, bodyBytes)
 
 	if err != nil {
-		log.Errorln(err.Error())
+		log.Errorf("%s", err.Error())
 	}
 
+	// Replace Request with response
+	c.Request.Header = resp.Header
+	c.Request.Header.Add("X-Go-Proxy-Replica", Version)
 	if resp.StatusCode > 302 {
 		c.String(resp.StatusCode, "%s", resp.Status)
 		return
