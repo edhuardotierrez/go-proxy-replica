@@ -36,12 +36,8 @@ type configBase struct {
 			Domains  []string `yaml:"domains"`
 		} `yaml:"autotls"`
 	} `yaml:"server"`
-
-	Master   configEndpoint   `yaml:"master"`
+	Main     configEndpoint   `yaml:"main"`
 	Replicas []configEndpoint `yaml:"replicas"`
-
-	Hostname string `yaml:"hostname"`
-	Port     string `yaml:"port"`
 }
 
 func LoadConfig() {
@@ -54,7 +50,7 @@ func LoadConfig() {
 		ConfigFilePath = runtimeDir + "/proxies.yaml"
 	}
 
-	viper.SetConfigName("proxies.yaml")
+	viper.SetConfigName("proxies")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(filepath.Dir(ConfigFilePath))
 
@@ -130,10 +126,8 @@ func configSetDefaults() {
 
 	viper.SetDefault("server.bind_address", ":http")
 	viper.SetDefault("server.certs.enabled", false)
-
 	viper.SetDefault("master.url", "http://localhost:8080")
 	viper.SetDefault("master.verify_ssl", false)
-
 	viper.SetDefault("replicas", map[string]interface{}{})
 
 }

@@ -46,6 +46,7 @@ func main() {
 	logLevel := flag.String("level", "", "set log level")
 
 	// auto config
+	bindFlag := flag.String("bind", "", "bind address (ex: -bind 127.0.0.1:8080")
 	domainsFlag := flag.String("domains", "", "(optional) lets encrypt domains")
 	emailFlag := flag.String("email", "", "(optional) lets encrypt email")
 	masterFlag := flag.String("master", "", "(optional) master url")
@@ -73,6 +74,14 @@ func main() {
 	// Config Init
 	LoadConfig()
 
+	if len(*bindFlag) > 0 {
+		Config.Server.BindAddress = strings.TrimSpace(*bindFlag)
+	}
+
+	if len(Config.Server.BindAddress) == 0 {
+		log.Fatalln("bind address is required")
+	}
+
 	// Replace Vars
 	if len(strings.TrimSpace(*domainsFlag)) > 2 {
 		log.Warningf(">> Runtime changing variable: domains (%s)", *domainsFlag)
@@ -98,7 +107,7 @@ func main() {
 
 	if len(strings.TrimSpace(*masterFlag)) > 2 {
 		log.Warningf(">> Runtime changing variable: master (%s)", *masterFlag)
-		Config.Master.URL = *masterFlag
+		Config.Main.URL = *masterFlag
 	}
 
 	// Route

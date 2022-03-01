@@ -71,8 +71,8 @@ func ReplyProxyHandler(c *gin.Context) {
 	}()
 
 	//
-	// Master and return << to original response
-	resp, err := replicate(Config.Master, c, bodyBytes)
+	// Main and return << to original response
+	resp, err := replicate(Config.Main, c, bodyBytes)
 
 	if err != nil {
 		log.Errorf("%s", err.Error())
@@ -85,6 +85,12 @@ func ReplyProxyHandler(c *gin.Context) {
 		c.String(resp.StatusCode, "%s", resp.Status)
 		return
 	}
+
+	// Add Headers to Response
+	for k, v := range resp.Header {
+		c.Writer.Header().Set(k, v[0])
+	}
+
 	if resp.Body != nil {
 		bodyBytes, _ = ioutil.ReadAll(resp.Body)
 		c.Data(resp.StatusCode, resp.Header.Get("Content-type"), bodyBytes)
