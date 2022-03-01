@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"regexp"
@@ -42,7 +43,9 @@ func replicate(cfg configEndpoint, c *gin.Context, buf []byte) (*http.Response, 
 	}
 
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: !cfg.VerifySSL},
+		TLSClientConfig:     &tls.Config{InsecureSkipVerify: !cfg.VerifySSL},
+		MaxIdleConnsPerHost: 1024,
+		TLSHandshakeTimeout: 0 * time.Second,
 	}
 	client := &http.Client{
 		Timeout:   timeout,
@@ -62,7 +65,15 @@ func replicate(cfg configEndpoint, c *gin.Context, buf []byte) (*http.Response, 
 
 }
 
+type MainResponseObject struct {
+	response *http.Response
+	error    error
+}
+
 func ReplyProxyHandler(c *gin.Context) {
+
+	finished := make(chan *MainResponseObject)
+
 	var bodyBytes []byte
 
 	if c.Request.Body != nil {
@@ -81,7 +92,17 @@ func ReplyProxyHandler(c *gin.Context) {
 
 	//
 	// Main and return << to original response
-	resp, err := replicate(Config.Main, c, bodyBytes)
+	go func(finished chan *MainResponseObject) {
+		resp, err := replicate(Config.Main, c, bodyBytes)
+		responseObject := &MainResponseObject{
+			response: resp,
+			error:    err,
+		}
+		finished <- responseObject
+	}(finished)
+
+	responseObject := <-finished
+	resp, err := responseObject.response, responseObject.error
 
 	if err != nil {
 		log.Errorf("%s", err.Error())
@@ -99,6 +120,10 @@ func ReplyProxyHandler(c *gin.Context) {
 	for k, v := range resp.Header {
 		c.Writer.Header().Set(k, v[0])
 	}
+
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 
 	if resp.Body != nil {
 		bodyBytes, _ = ioutil.ReadAll(resp.Body)
