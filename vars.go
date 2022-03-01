@@ -21,23 +21,24 @@ const (
 )
 
 type configEndpoint struct {
-	URL       string `yaml:"url"`
-	VerifySSL bool   `yaml:"verify_ssl"`
-	Timeout   string `yaml:"timeout"`
+	URL       string `mapstructure:"url"`
+	VerifySSL bool   `mapstructure:"verify_ssl"`
+	Timeout   string `mapstructure:"timeout"`
 }
 
 type configBase struct {
 	Server struct {
-		BindAddress string `yaml:"bind_address"`
+		BindAddress string `mapstructure:"bind_address"`
+		MetricsPath string `mapstructure:"metrics_path"`
 		AutoTLS     struct {
-			Email    string   `yaml:"email"`
-			Enabled  bool     `yaml:"enabled"`
-			Redirect bool     `yaml:"Redirect"`
-			Domains  []string `yaml:"domains"`
-		} `yaml:"autotls"`
-	} `yaml:"server"`
-	Main     configEndpoint   `yaml:"main"`
-	Replicas []configEndpoint `yaml:"replicas"`
+			Email    string   `mapstructure:"email"`
+			Enabled  bool     `mapstructure:"enabled"`
+			Redirect bool     `mapstructure:"Redirect"`
+			Domains  []string `mapstructure:"domains"`
+		} `mapstructure:"autotls"`
+	} `mapstructure:"server"`
+	Main     configEndpoint   `mapstructure:"main"`
+	Replicas []configEndpoint `mapstructure:"replicas"`
 }
 
 func LoadConfig() {
@@ -123,8 +124,8 @@ func IsDevelopment() bool {
 }
 
 func configSetDefaults() {
-
-	viper.SetDefault("server.bind_address", ":http")
+	//viper.SetDefault("server.proxy.metrics_path", "/_proxy/metrics")
+	//viper.SetDefault("server.proxy.bind_address", ":http")
 	viper.SetDefault("server.certs.enabled", false)
 	viper.SetDefault("master.url", "http://localhost:8080")
 	viper.SetDefault("master.verify_ssl", false)

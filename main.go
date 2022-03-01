@@ -119,6 +119,10 @@ func main() {
 	// Add all routers
 	route.NoRoute(ReplyProxyHandler)
 
+	if len(Config.Server.MetricsPath) > 0 {
+		route.GET(Config.Server.MetricsPath, prometheusHandler())
+	}
+
 	if Config.Server.AutoTLS.Enabled {
 		//
 		m := autocert.Manager{
