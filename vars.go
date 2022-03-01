@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"github.com/valyala/fasthttp"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,6 +25,7 @@ type configEndpoint struct {
 	URL       string `mapstructure:"url"`
 	VerifySSL bool   `mapstructure:"verify_ssl"`
 	Timeout   string `mapstructure:"timeout"`
+	Client    *fasthttp.Client
 }
 
 type configBase struct {
@@ -37,8 +39,8 @@ type configBase struct {
 			Domains  []string `mapstructure:"domains"`
 		} `mapstructure:"autotls"`
 	} `mapstructure:"server"`
-	Main     configEndpoint   `mapstructure:"main"`
-	Replicas []configEndpoint `mapstructure:"replicas"`
+	Main     *configEndpoint   `mapstructure:"main"`
+	Replicas []*configEndpoint `mapstructure:"replicas"`
 }
 
 func LoadConfig() {

@@ -1,15 +1,12 @@
 package main
 
 import (
-	"bytes"
-	"crypto/tls"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
-	"io"
+	"github.com/valyala/fasthttp"
 	"io/ioutil"
-	"net/http"
 	"regexp"
 	"time"
 )
@@ -22,10 +19,33 @@ func prometheusHandler() gin.HandlerFunc {
 	}
 }
 
-func replicate(cfg configEndpoint, c *gin.Context, buf []byte) (*http.Response, error) {
+func replicate(cfg *configEndpoint, c *gin.Context, buf []byte) (*fasthttp.Response, error) {
 
-	//
-	body := ioutil.NopCloser(bytes.NewBuffer(buf))
+	if cfg.Client == nil {
+		readTimeout, _ := time.ParseDuration(cfg.Timeout)
+		writeTimeout, _ := time.ParseDuration(cfg.Timeout)
+		if readTimeout == 0 {
+			readTimeout = ReplyTimeout
+		}
+		if writeTimeout == 0 {
+			writeTimeout = ReplyTimeout
+		}
+		maxIdleConnDuration, _ := time.ParseDuration("1h")
+		cfg.Client = &fasthttp.Client{
+			ReadTimeout:                   readTimeout,
+			WriteTimeout:                  writeTimeout,
+			MaxIdleConnDuration:           maxIdleConnDuration,
+			NoDefaultUserAgentHeader:      true,
+			DisableHeaderNamesNormalizing: false,
+			DisablePathNormalizing:        true,
+			// increase DNS cache time to an hour instead of default minute
+			//Dial: (&fasthttp.TCPDialer{
+			//	Concurrency:      4096,
+			//	DNSCacheDuration: time.Hour,
+			//}).Dial,
+		}
+		log.Println("Starting new client for: ", cfg.URL)
+	}
 
 	var re = regexp.MustCompile(`^/`)
 	uri := re.ReplaceAllString(c.Request.RequestURI, ``)
@@ -33,46 +53,31 @@ func replicate(cfg configEndpoint, c *gin.Context, buf []byte) (*http.Response, 
 
 	log.Println(cfg.URL)
 
-	//
-	// req.Header.Add("X-Forwarded-Host", host)
-	var timeout = ReplyTimeout
+	req := fasthttp.AcquireRequest()
+	req.SetRequestURI(url)
+	req.SetBodyRaw(buf)
 
-	t, err := time.ParseDuration(cfg.Timeout)
-	if err != nil || cfg.Timeout == "" {
-		timeout = t
+	// Add Headers
+	for k, v := range c.Request.Header {
+		req.Header.Set(k, v[0])
 	}
 
-	tr := &http.Transport{
-		TLSClientConfig:     &tls.Config{InsecureSkipVerify: !cfg.VerifySSL},
-		MaxIdleConnsPerHost: 1024,
-		TLSHandshakeTimeout: 0 * time.Second,
-	}
-	client := &http.Client{
-		Timeout:   timeout,
-		Transport: tr,
-	}
+	resp := fasthttp.AcquireResponse()
+	err := cfg.Client.Do(req, resp)
 
-	req, err := http.NewRequest(c.Request.Method, url, body)
-	if err != nil {
-		log.Errorln(err)
+	fasthttp.ReleaseRequest(req)
+
+	if err == nil {
+		log.Debugf("DEBUG Response: %s\n", resp.Body())
+		return resp, nil
+	} else {
+		log.Errorf(err.Error())
+		return nil, err
 	}
 
-	// Copy headers to >>
-	req.Header = c.Request.Header
-	resp, err := client.Do(req)
-
-	return resp, err
-
-}
-
-type MainResponseObject struct {
-	response *http.Response
-	error    error
 }
 
 func ReplyProxyHandler(c *gin.Context) {
-
-	finished := make(chan *MainResponseObject)
 
 	var bodyBytes []byte
 
@@ -81,55 +86,36 @@ func ReplyProxyHandler(c *gin.Context) {
 	}
 
 	// Routines for replicas
-	go func() {
-		for _, replica := range Config.Replicas {
-			_, err := replicate(replica, c, bodyBytes)
+	for _, replica := range Config.Replicas {
+		go func(re *configEndpoint) {
+			resp, err := replicate(re, c, bodyBytes)
+			defer fasthttp.ReleaseResponse(resp)
 			if err != nil {
-				log.Warnln(replica.URL, err.Error())
+				log.Warnln(re.URL, err.Error())
 			}
-		}
-	}()
+		}(replica)
+	}
 
 	//
 	// Main and return << to original response
-	go func(finished chan *MainResponseObject) {
-		resp, err := replicate(Config.Main, c, bodyBytes)
-		responseObject := &MainResponseObject{
-			response: resp,
-			error:    err,
-		}
-		finished <- responseObject
-	}(finished)
-
-	responseObject := <-finished
-	resp, err := responseObject.response, responseObject.error
+	resp, err := replicate(Config.Main, c, bodyBytes)
+	defer fasthttp.ReleaseResponse(resp)
 
 	if err != nil {
 		log.Errorf("%s", err.Error())
 	}
 
+	responseBody := resp.Body()
+
 	// Replace Request with response
-	c.Request.Header = resp.Header
-	c.Request.Header.Add("X-Go-Proxy-Replica", Version)
-	if resp.StatusCode > 302 {
-		c.String(resp.StatusCode, "%s", resp.Status)
-		return
-	}
+	resp.Header.VisitAll(func(key, value []byte) {
+		c.Writer.Header().Set(string(key), string(value))
+	})
 
-	// Add Headers to Response
-	for k, v := range resp.Header {
-		c.Writer.Header().Set(k, v[0])
-	}
-
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
-
-	if resp.Body != nil {
-		bodyBytes, _ = ioutil.ReadAll(resp.Body)
-		c.Data(resp.StatusCode, resp.Header.Get("Content-type"), bodyBytes)
+	if responseBody != nil {
+		c.Data(resp.StatusCode(), string(resp.Header.ContentType()), responseBody)
 	} else {
-		c.Data(resp.StatusCode, resp.Header.Get("Content-type"), bodyBytes)
+		c.Data(resp.StatusCode(), string(resp.Header.ContentType()), responseBody)
 	}
 
 }
