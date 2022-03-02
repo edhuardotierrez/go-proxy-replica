@@ -30,7 +30,7 @@ func replicate(cfg *configEndpoint, c *gin.Context, buf []byte) (*fasthttp.Respo
 		if writeTimeout == 0 {
 			writeTimeout = ReplyTimeout
 		}
-		maxIdleConnDuration, _ := time.ParseDuration("1h")
+		maxIdleConnDuration, _ := time.ParseDuration("30m")
 		cfg.Client = &fasthttp.Client{
 			ReadTimeout:                   readTimeout,
 			WriteTimeout:                  writeTimeout,
