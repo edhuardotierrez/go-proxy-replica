@@ -54,6 +54,7 @@ func replicate(cfg *configEndpoint, c *gin.Context, buf []byte) (*fasthttp.Respo
 	log.Println(cfg.URL)
 
 	req := fasthttp.AcquireRequest()
+	req.Header.SetMethodBytes([]byte(c.Request.Method))
 	req.SetRequestURI(url)
 	req.SetBodyRaw(buf)
 
