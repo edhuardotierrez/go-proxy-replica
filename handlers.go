@@ -19,6 +19,18 @@ func prometheusHandler() gin.HandlerFunc {
 	}
 }
 
+var hopHeaders = []string{
+	"Connection",          // Connection
+	"Proxy-Connection",    // non-standard but still sent by libcurl and rejected by e.g. google
+	"Keep-Alive",          // Keep-Alive
+	"Proxy-Authenticate",  // Proxy-Authenticate
+	"Proxy-Authorization", // Proxy-Authorization
+	"Te",                  // canonicalized version of "TE"
+	"Trailer",             // not Trailers per URL above; https://www.rfc-editor.org/errata_search.php?eid=4522
+	"Transfer-Encoding",   // Transfer-Encoding
+	"Upgrade",             // Upgrade
+}
+
 func replicate(cfg *configEndpoint, c *gin.Context, buf []byte) (*fasthttp.Response, error) {
 
 	if cfg.Client == nil {
@@ -54,6 +66,8 @@ func replicate(cfg *configEndpoint, c *gin.Context, buf []byte) (*fasthttp.Respo
 	log.Println(cfg.URL)
 
 	req := fasthttp.AcquireRequest()
+	defer fasthttp.ReleaseRequest(req)
+
 	req.Header.SetMethodBytes([]byte(c.Request.Method))
 	req.SetRequestURI(url)
 	req.SetBodyRaw(buf)
@@ -63,13 +77,21 @@ func replicate(cfg *configEndpoint, c *gin.Context, buf []byte) (*fasthttp.Respo
 		req.Header.Set(k, v[0])
 	}
 
+	// Remove headers before sending request
+	for _, h := range hopHeaders {
+		req.Header.Del(h)
+	}
+
 	resp := fasthttp.AcquireResponse()
 	err := cfg.Client.Do(req, resp)
 
-	fasthttp.ReleaseRequest(req)
+	// Delete headers (after response)
+	for _, h := range hopHeaders {
+		resp.Header.Del(h)
+	}
 
 	if err == nil {
-		log.Debugf("DEBUG Response: %s\n", resp.Body())
+		log.Debugf("DEBUG Response Length: %d\n", resp.Header.ContentLength())
 		return resp, nil
 	} else {
 		log.Errorf(err.Error())
@@ -110,6 +132,7 @@ func ReplyProxyHandler(c *gin.Context) {
 
 	// Replace Request with response
 	resp.Header.VisitAll(func(key, value []byte) {
+		c.Request.Header.Set(string(key), string(value))
 		c.Writer.Header().Set(string(key), string(value))
 	})
 
