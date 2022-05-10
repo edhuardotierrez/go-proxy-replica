@@ -7,6 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/valyala/fasthttp"
 	"io/ioutil"
+	"net/http"
 	"regexp"
 	"time"
 )
@@ -51,10 +52,10 @@ func replicate(cfg *configEndpoint, c *gin.Context, buf []byte) (*fasthttp.Respo
 			DisableHeaderNamesNormalizing: false,
 			DisablePathNormalizing:        true,
 			// increase DNS cache time to an hour instead of default minute
-			//Dial: (&fasthttp.TCPDialer{
-			//	Concurrency:      4096,
-			//	DNSCacheDuration: time.Hour,
-			//}).Dial,
+			Dial: (&fasthttp.TCPDialer{
+				Concurrency:      4096,
+				DNSCacheDuration: time.Hour,
+			}).Dial,
 		}
 		log.Println("Starting new client for: ", cfg.URL)
 	}
@@ -85,18 +86,18 @@ func replicate(cfg *configEndpoint, c *gin.Context, buf []byte) (*fasthttp.Respo
 	resp := fasthttp.AcquireResponse()
 	err := cfg.Client.Do(req, resp)
 
+	if err != nil {
+		log.Errorf(err.Error())
+		return resp, err
+	}
+
 	// Delete headers (after response)
 	for _, h := range hopHeaders {
 		resp.Header.Del(h)
 	}
 
-	if err == nil {
-		log.Debugf("DEBUG Response Length: %d\n", resp.Header.ContentLength())
-		return resp, nil
-	} else {
-		log.Errorf(err.Error())
-		return nil, err
-	}
+	log.Debugf("DEBUG Response Length: %d\n", resp.Header.ContentLength())
+	return resp, nil
 
 }
 
@@ -112,7 +113,9 @@ func ReplyProxyHandler(c *gin.Context) {
 	for _, replica := range Config.Replicas {
 		go func(re *configEndpoint) {
 			resp, err := replicate(re, c, bodyBytes)
-			defer fasthttp.ReleaseResponse(resp)
+			if resp != nil {
+				defer fasthttp.ReleaseResponse(resp)
+			}
 			if err != nil {
 				log.Warnln(re.URL, err.Error())
 			}
@@ -122,7 +125,15 @@ func ReplyProxyHandler(c *gin.Context) {
 	//
 	// Main and return << to original response
 	resp, err := replicate(Config.Main, c, bodyBytes)
-	defer fasthttp.ReleaseResponse(resp)
+
+	if resp != nil {
+		defer fasthttp.ReleaseResponse(resp)
+	}
+
+	if err != nil {
+		c.Data(http.StatusBadGateway, "text/plain", []byte(err.Error()))
+		return
+	}
 
 	if err != nil {
 		log.Errorf("%s", err.Error())
