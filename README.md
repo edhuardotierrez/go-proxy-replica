@@ -58,7 +58,19 @@ Run from build
 
 ```
 
-Run from docker
+Run from local image
+```bash
+docker run -ti \
+        --name go-proxy-replica \
+        --privileged \
+        -p 80:80 \
+        -v ./proxies.yaml:/app/proxies.yaml:ro \
+        go-proxy-replica:latest
+
+```
+
+
+Run from docker hub prebuilt image
 ```bash
 docker run -ti \
         --name go-proxy-replica \
@@ -68,3 +80,4 @@ docker run -ti \
         simonops/go-proxy-replica:latest
 
 ```
+
