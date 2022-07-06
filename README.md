@@ -64,7 +64,7 @@ docker run -ti \
         --name go-proxy-replica \
         --privileged \
         -p 80:80 \
-        -v ./proxies.yaml:/app/proxies.yaml:ro
+        -v ./proxies.yaml:/app/proxies.yaml:ro \
         go-proxy-replica:latest
 
 ```
